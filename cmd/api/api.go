@@ -14,15 +14,28 @@ type config struct {
 	addr string
 }
 
-func (app *application) mount() *http.ServeMux {
+func (app *application) mount() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /v1/health", app.checkHealth)
 	mux.HandleFunc("POST /v1/upload", app.handleUpload)
-	return mux
+	return corsMiddleware(mux)
 }
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-func (app *application) run(mux *http.ServeMux) error {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+func (app *application) run(mux http.Handler) error {
 
 	srv := &http.Server{
 		Addr:         app.config.addr,
