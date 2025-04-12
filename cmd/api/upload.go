@@ -1,23 +1,20 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"time"
+	"sync"
 )
 
-func generateSessionID() string {
-	bytes := make([]byte, 2)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
-}
+var (
+	sessionCounters = make(map[string]uint64)
+	mu              sync.Mutex
+)
+
 func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// folderID := generateSessionID()
@@ -33,6 +30,14 @@ func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(100 << 20)
 	if err != nil {
 		http.Error(w, "Failed to parse Multipart form LIMIT EXCEED"+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// retrive sessionId from form
+	sessionID := r.FormValue("sessionId")
+	log.Println("sessionid", sessionID)
+	if sessionID == "" {
+		http.Error(w, "sessionId is required", http.StatusBadRequest)
 		return
 	}
 
@@ -54,11 +59,33 @@ func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	mu.Lock()
+	counter := sessionCounters[sessionID] + 1
+	sessionCounters[sessionID] = counter
+	mu.Unlock()
+
+	basepath := "./uploads/session-" + sessionID
+	err = os.MkdirAll(basepath, 0755)
+	if err != nil {
+		http.Error(w, "error"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	subfolder := []string{"hls", "webm"}
+	for _, folder := range subfolder {
+		path := basepath + "/" + folder
+		err := os.MkdirAll(path, 0755)
+		if err != nil {
+			http.Error(w, "error creating sub folder"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
 	// Generate unique file name with timestamp
 
-	timestap := strconv.FormatInt(time.Now().UnixNano(), 10)
-	filename := fmt.Sprintf("chunk-%s.webm", timestap)
-	filepath := filepath.Join(uploadDir, filename)
+	// timestap := strconv.FormatInt(time.Now().UnixNano(), 10)
+	// counter++
+	filename := fmt.Sprintf("chunk-%d.webm", sessionCounters[sessionID])
+	filepath := filepath.Join(basepath, "webm", filename)
 
 	//create a destination file
 	dst, err := os.Create(filepath)

@@ -1,10 +1,18 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
 )
+
+func generateSessionID() string {
+	bytes := make([]byte, 2)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
 
 func (app *application) testHandler(w http.ResponseWriter, r *http.Request) {
 	folderId := generateSessionID()
