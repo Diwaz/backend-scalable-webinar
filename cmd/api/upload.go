@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -11,7 +13,15 @@ import (
 	"time"
 )
 
+func generateSessionID() string {
+	bytes := make([]byte, 2)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
 func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
+
+	// folderID := generateSessionID()
+	// basepath := "./"+ folderID
 
 	// only allow POST request
 	if r.Method != http.MethodPost {
