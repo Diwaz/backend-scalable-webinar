@@ -20,6 +20,7 @@ func (app *application) mount() http.Handler {
 	mux.HandleFunc("GET /v1/health", app.checkHealth)
 	mux.HandleFunc("POST /v1/upload", app.handleUpload)
 	mux.HandleFunc("GET /v1/test", app.testHandler)
+	mux.HandleFunc("GET /v1/stream", app.handleWS)
 	return corsMiddleware(mux)
 }
 func corsMiddleware(next http.Handler) http.Handler {
