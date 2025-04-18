@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	dlog "log"
 	"net/http"
 	"time"
 )
@@ -20,6 +20,7 @@ func (app *application) mount() http.Handler {
 	mux.HandleFunc("GET /v1/health", app.checkHealth)
 	mux.HandleFunc("POST /v1/upload", app.handleUpload)
 	mux.HandleFunc("GET /v1/test", app.testHandler)
+	mux.HandleFunc("GET /v1/stream", app.handleWS)
 	return corsMiddleware(mux)
 }
 func corsMiddleware(next http.Handler) http.Handler {
@@ -46,6 +47,6 @@ func (app *application) run(mux http.Handler) error {
 		IdleTimeout:  time.Minute * 2,
 	}
 
-	log.Printf("server has started  at %s", app.config.addr)
+	dlog.Printf("server has started  at %s", app.config.addr)
 	return srv.ListenAndServe()
 }
