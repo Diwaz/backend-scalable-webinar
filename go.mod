@@ -3,6 +3,8 @@ module github.com/Diwaz/backend-scalable-webinar
 go 1.23.4
 
 require (
+	github.com/asticode/go-astikit v0.30.0 // indirect
+	github.com/asticode/go-astits v1.13.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect

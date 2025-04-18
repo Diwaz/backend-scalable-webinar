@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -262,12 +264,65 @@ func (app *application) handleWS(w http.ResponseWriter, r *http.Request) {
 		trackLocal := addTrack(t)
 		defer removeTrack(trackLocal)
 
+		sdp := fmt.Sprintf(`v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+m=%s 5004 RTP/AVP %d
+a=rtpmap:%d %s/%d
+`,
+			t.Kind().String(), // m=video or m=audio
+			t.PayloadType(),   // dynamic payload type 96, 111 etc
+			t.PayloadType(),
+			codecNameFromMimeType(t.Codec().MimeType),
+			codecClockRateFromMimeType(t.Codec().MimeType),
+		)
+
+		outputDir := "./recordings"
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			log.Errorf("Failed to create output directory: %v", err)
+			return
+		}
+
+		// Create a file to save the incoming track
+		timestamp := time.Now().UnixNano()
+		fileName := fmt.Sprintf("%s/%s_%d.rtp", outputDir, t.Kind().String(), timestamp)
+		sdpFileName := fmt.Sprintf("%s/%s_%d.sdp", outputDir, t.Kind().String(), timestamp)
+
+		sdpFile, err := os.Create(sdpFileName)
+		if err != nil {
+			log.Errorf("Failed to create file : %v", err)
+			return
+		}
+		// write the sdp string into the file
+		_, err = sdpFile.WriteString(sdp)
+		if err != nil {
+			log.Errorf("Failed to write SDP to file: %v", err)
+			return
+		}
+		defer sdpFile.Close()
+
+		// here now give me method to save sdp into sdpFileName
+
+		file, err := os.Create(fileName)
+		if err != nil {
+			log.Errorf("Failed to create file: %v", err)
+			return
+		}
+		defer file.Close()
+
 		buf := make([]byte, 1500)
 		rtpPkt := &rtp.Packet{}
 
 		for {
 			i, _, err := t.Read(buf)
 			if err != nil {
+				return
+			}
+			// Write the raw packet to file
+			if _, err := file.Write(buf[:i]); err != nil {
+				log.Errorf("Failed to write to file: %v", err)
 				return
 			}
 
@@ -352,4 +407,28 @@ func (t *threadSafeWriter) WriteJSON(v interface{}) error {
 	defer t.Unlock()
 
 	return t.Conn.WriteJSON(v)
+}
+
+func codecNameFromMimeType(mimeType string) string {
+	switch mimeType {
+	case webrtc.MimeTypeH264:
+		return "H264"
+	case webrtc.MimeTypeVP8:
+		return "VP8"
+	case webrtc.MimeTypeOpus:
+		return "opus"
+	default:
+		return "unknown"
+	}
+}
+
+func codecClockRateFromMimeType(mimeType string) int {
+	switch mimeType {
+	case webrtc.MimeTypeH264, webrtc.MimeTypeVP8:
+		return 90000
+	case webrtc.MimeTypeOpus:
+		return 48000
+	default:
+		return 0
+	}
 }
