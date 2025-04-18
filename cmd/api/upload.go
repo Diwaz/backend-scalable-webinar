@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
+	dlog "log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,7 +24,7 @@ func waitForFileStability(filePath string, interval time.Duration) bool {
 	for i := 0; i < maxRetries; i++ {
 		info, err := os.Stat(filePath)
 		if err != nil {
-			log.Println("File stat error:", err)
+			dlog.Println("File stat error:", err)
 			return false
 		}
 
@@ -38,7 +38,7 @@ func waitForFileStability(filePath string, interval time.Duration) bool {
 		time.Sleep(interval)
 	}
 
-	log.Println("File is not stable after retries")
+	dlog.Println("File is not stable after retries")
 	return false
 }
 
@@ -62,7 +62,7 @@ func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// retrive sessionId from form
 	sessionID := r.FormValue("sessionId")
-	log.Println("sessionid", sessionID)
+	dlog.Println("sessionid", sessionID)
 	if sessionID == "" {
 		http.Error(w, "sessionId is required", http.StatusBadRequest)
 		return
@@ -155,7 +155,7 @@ func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 		SessionID: sessionID,
 		ChunkID:   int(sessionCounters[sessionID]),
 	}
-	log.Printf("Saved chunk : %s (%s) \n", filename, handler.Header.Get("Content-Type"))
+	dlog.Printf("Saved chunk : %s (%s) \n", filename, handler.Header.Get("Content-Type"))
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Chunk uploaded successfully"))
 
@@ -163,12 +163,12 @@ func (app *application) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 func convertChunkToHLS(chunkPath, sessionID string, chunkNumber int) error {
 	//prepare paths
-	log.Println("XXXXX________XXXXX_____", chunkPath, chunkNumber)
+	dlog.Println("XXXXX________XXXXX_____", chunkPath, chunkNumber)
 	basedir := filepath.Join("uploads", "session-"+sessionID, "hls")
 	outputTSFile := fmt.Sprintf("chunk-%d", chunkNumber)
 	outputTSPath := filepath.Join(basedir, outputTSFile+".ts")
 	playlistPath := filepath.Join(basedir, "output.m3u8")
-	log.Println("--------------------------------------", outputTSPath, playlistPath)
+	dlog.Println("--------------------------------------", outputTSPath, playlistPath)
 	cmd := exec.Command("ffmpeg",
 		"-i", chunkPath,
 		"-c:v", "libx264",
@@ -182,7 +182,7 @@ func convertChunkToHLS(chunkPath, sessionID string, chunkNumber int) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	log.Printf("Converting %s to %s\n", chunkPath, outputTSPath)
+	dlog.Printf("Converting %s to %s\n", chunkPath, outputTSPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ffmpeg conversion failed: %w", err)
 	}
@@ -209,6 +209,6 @@ func convertChunkToHLS(chunkPath, sessionID string, chunkNumber int) error {
 		return fmt.Errorf("failed to write to playlist: %w", err)
 	}
 
-	log.Printf("Appended %s to %s\n", outputTSFile, playlistPath)
+	dlog.Printf("Appended %s to %s\n", outputTSFile, playlistPath)
 	return nil
 }
